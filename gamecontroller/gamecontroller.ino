@@ -2,16 +2,14 @@
 #include <stdlib.h>
 #include <Wire.h>
 
-const int NUM_CONSOLES = 3;
-const int NUM_INSTR = 9;
 const int BUF_SIZE = 80;
 const int MAX_STATES = 5;
 const byte CHANGE_INSTR_NAME = 1;
 const byte GET_INSTR_STATE = 2;
 const byte CHANGE_CONSOLE_CMD = 3;
 
-const char* names[] = {"first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"};
-const char* commands[] = {"set first to %s",
+const char* const names[] = {"first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"};
+const char* const commands[] = {"set first to %s",
                           "turn second to %s",
                           "set third to the position %s",
                           "make sure fourth is %s",
@@ -20,7 +18,7 @@ const char* commands[] = {"set first to %s",
                           "%s the seventh",
                           "greet eighth with %s",
                           "turn ninth to %s position"};
-const char* targetNames [][MAX_STATES] = 
+const char* const targetNames [][MAX_STATES] = 
   {{"up", "down"},
    {"high", "low"},
    {"on", "off"},
@@ -35,19 +33,19 @@ class Instrument {
   private:
     byte busAddr;
     byte stateCount;
-    byte target;
+    bool pendingCommand;
     const char* instrumentName;
     const char* commandMessage;
-    const char** stateNames;
+    const char* const* stateNames;
 
   public:
     byte getState() {
       Wire.beginTransmission(busAddr);
       Wire.write(GET_INSTR_STATE);
       Wire.endTransmission();
+      
       Wire.requestFrom(busAddr, 1);
       byte state;
-
       while (Wire.available()) {
          state = Wire.read();
       }
@@ -61,15 +59,15 @@ class Instrument {
       Wire.endTransmission();
     }
 
-    byte getTarget() { 
-      return target;
+    void setPendingCommand(bool val) {
+      pendingCommand = val;
     }
 
-    void setTarget(byte newTarget) {
-      target = newTarget;
+    bool hasPendingCommand() {
+      return pendingCommand;
     }
 
-    byte getStateCount(){
+    byte getStateCount() {
       return stateCount;
     }
 
@@ -82,16 +80,17 @@ class Instrument {
 
 
     Instrument(byte addr, int stateNum, const char* instName,
-              const char* constructMessage, const char** sNames) {
+              const char* constructMessage, const char* const* sNames) {
       busAddr = addr;
       stateCount = stateNum;
       instrumentName = instName;
       commandMessage = constructMessage;
       stateNames = sNames;
+      pendingCommand = false;
     }
 };
 
-Instrument instruments[NUM_INSTR] =
+Instrument instruments[] =
   {
      Instrument(0x10, 2, names[0], commands[0], targetNames[0]),
      Instrument(0x11, 2, names[1], commands[1], targetNames[1]),
@@ -104,6 +103,8 @@ Instrument instruments[NUM_INSTR] =
      Instrument(0x18, 3, names[8], commands[8], targetNames[8])
    };
 
+const int NUM_INSTR = sizeof(instruments) / sizeof(Instrument);
+
 class Console {
   private:
     byte busAddr;
@@ -112,45 +113,84 @@ class Console {
 
   public:
     void setCommand(byte instr, byte goal) {
-      String message;
-      char buf[BUF_SIZE];
-      instruments[instr].setTarget(goal);
+      instruments[instr].setPendingCommand(true);
       currentInstrument = instr;
       instrumentGoal = goal;
-      message = instruments[instr].makeMessage(goal);
+      
+      String message = instruments[instr].makeMessage(goal);
       Wire.beginTransmission(busAddr);
       Wire.write(CHANGE_CONSOLE_CMD);
       Wire.write(message.c_str());
       Wire.endTransmission();
-      return;
     }
 
-    int currInstrument() {
-      return currentInstrument;
+    void clearCommand() {
+      instruments[currentInstrument].setPendingCommand(false);
+    }
+
+    bool isCompleted() {
+      Instrument& instr = instruments[currentInstrument];
+      bool result = instr.getState() == instrumentGoal;
+      if (result) {
+        Serial.print("Command completed for console 0x");
+        Serial.println(busAddr, HEX);
+      }
+      return result;
+    }
+
+    void genCommand() {
+      Serial.print("Generating command for console 0x");
+      Serial.println(busAddr, HEX);
+      
+      byte nextInstr;
+      // Only select an instrument that does not have a pending command 
+      do {
+        nextInstr = random(NUM_INSTR);
+      }
+      while (instruments[nextInstr].hasPendingCommand());
+      
+      byte nextGoal;
+      do {
+        nextGoal = random(instruments[nextInstr].getStateCount());
+      }
+      while (nextGoal == instruments[nextInstr].getState());
+
+      Serial.print("  Generating command for instr ");
+      Serial.print(nextInstr);
+      Serial.print(", goal ");
+      Serial.println(nextGoal);
+      setCommand(nextInstr, nextGoal);
     }
 
     explicit Console(byte addr) : busAddr(addr) {}
 };
 
-Console consoles[NUM_CONSOLES] = {
+Console consoles[] = {
   Console(0x1),
   Console(0x2),
   Console(0x3)
 };
 
+const int NUM_CONSOLES = sizeof(consoles) / sizeof(Console);
+
 void setup() {
+  Serial.begin(9600); // for debugging
+  Serial.println("Initializing...");
   Wire.begin();
+
+  // TODO: seed random number generator
+
+  for (int i = 0; i < NUM_CONSOLES; i++) {
+    consoles[i].genCommand();
+  }
 }
 
 void loop() {
   for (int i = 0; i < NUM_CONSOLES; i++) {
     Console& current = consoles[i];
-    Instrument& instr = instruments[current.currInstrument()];
-    if (instr.getState() == instr.getTarget()) {
-      //TODO: make sure next state is not contradicting current pending states
-      byte nextInstr = rand() % NUM_INSTR;
-      byte nextGoal = rand() % instr.getStateCount();
-      current.setCommand(nextInstr, nextGoal);
+    if (current.isCompleted()) {
+      current.clearCommand();
+      current.genCommand();
     }
   }
   delay(10);
