@@ -8,8 +8,8 @@ const byte CHANGE_INSTR_NAME = 1;
 const byte GET_INSTR_STATE = 2;
 const byte CHANGE_CONSOLE_CMD = 3;
 
-const char* const names[] = {"first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"};
-const char* const commands[] = {"set first to %s",
+const char* const names[] = {"jess", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"};
+const char* const commands[] = {"set Jess to %s",
                           "turn second to %s",
                           "set third to the position %s",
                           "make sure fourth is %s",
@@ -52,7 +52,7 @@ class Instrument {
       return state;
     }
 
-    void setName(String s) {
+    void setName() {
       Wire.beginTransmission(busAddr);
       Wire.write(CHANGE_INSTR_NAME);
       Wire.write(instrumentName);
@@ -93,14 +93,14 @@ class Instrument {
 Instrument instruments[] =
   {
      Instrument(0x10, 2, names[0], commands[0], targetNames[0]),
-     Instrument(0x11, 2, names[1], commands[1], targetNames[1]),
-     Instrument(0x12, 2, names[2], commands[2], targetNames[2]),
-     Instrument(0x13, 5, names[3], commands[3], targetNames[3]),
-     Instrument(0x14, 3, names[4], commands[4], targetNames[4]),
-     Instrument(0x15, 2, names[5], commands[5], targetNames[5]),
-     Instrument(0x16, 2, names[6], commands[6], targetNames[6]),
-     Instrument(0x17, 2, names[7], commands[7], targetNames[7]),
-     Instrument(0x18, 3, names[8], commands[8], targetNames[8])
+     //Instrument(0x11, 2, names[1], commands[1], targetNames[1]),
+     //Instrument(0x12, 2, names[2], commands[2], targetNames[2]),
+     //Instrument(0x13, 5, names[3], commands[3], targetNames[3]),
+     //Instrument(0x14, 3, names[4], commands[4], targetNames[4]),
+     //Instrument(0x15, 2, names[5], commands[5], targetNames[5]),
+     //Instrument(0x16, 2, names[6], commands[6], targetNames[6]),
+     //Instrument(0x17, 2, names[7], commands[7], targetNames[7]),
+     //Instrument(0x18, 3, names[8], commands[8], targetNames[8])
    };
 
 const int NUM_INSTR = sizeof(instruments) / sizeof(Instrument);
@@ -167,21 +167,27 @@ class Console {
 
 Console consoles[] = {
   Console(0x1),
-  Console(0x2),
-  Console(0x3)
+  //Console(0x2),
+  //Console(0x3)
 };
 
 const int NUM_CONSOLES = sizeof(consoles) / sizeof(Console);
 
 void setup() {
   Serial.begin(9600); // for debugging
-  Serial.println("Initializing...");
   Wire.begin();
 
-  // TODO: seed random number generator
+  delay(3000);
+  Serial.println("Initializing...");
 
+  // TODO: seed random number generator
+  for (int i = 0; i < NUM_INSTR; i++) {
+    instruments[i].setName();
+    delay(2000);
+  }
   for (int i = 0; i < NUM_CONSOLES; i++) {
     consoles[i].genCommand();
+    delay(2000);
   }
 }
 
