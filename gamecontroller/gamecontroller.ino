@@ -7,6 +7,14 @@ const int MAX_STATES = 5;
 const byte CHANGE_INSTR_NAME = 1;
 const byte GET_INSTR_STATE = 2;
 const byte CHANGE_CONSOLE_CMD = 3;
+const byte START_INSTR_STATE = 4;
+const byte START_PRESS_CHECK = 5;
+const byte BUTTON_PRESSED = 1;
+
+const byte WAITING = 1;
+const byte GAMEPLAY = 2;
+const byte RESET = 3;
+const int TIMEOUT = 5000;
 
 const char* const names[] = {"jess", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"};
 const char* const commands[] = {"set Jess to %s",
@@ -39,6 +47,20 @@ class Instrument {
     const char* const* stateNames;
 
   public:
+
+    byte getBeginState() {
+      Wire.beginTransmission(busAddr);
+      Wire.write(START_INSTR_STATE);
+      Wire.endTransmission();
+      
+      Wire.requestFrom(busAddr, 1);
+      byte state;
+      while (Wire.available()) {
+         state = Wire.read();
+      }
+      return state;
+    }
+  
     byte getState() {
       Wire.beginTransmission(busAddr);
       Wire.write(GET_INSTR_STATE);
@@ -110,6 +132,7 @@ class Console {
     byte busAddr;
     byte currentInstrument;
     byte instrumentGoal;
+    bool isReady;
 
   public:
     void setCommand(byte instr, byte goal) {
@@ -122,6 +145,25 @@ class Console {
       Wire.write(CHANGE_CONSOLE_CMD);
       Wire.write(message.c_str());
       Wire.endTransmission();
+    }
+
+    bool checkIfReady() {
+      if (isReady) { return true; }
+      Wire.beginTransmission(busAddr);
+      Wire.write(START_PRESS_CHECK);
+      Wire.endTransmission();
+      
+      Wire.requestFrom(busAddr, 1);
+      byte state;
+      while (Wire.available()) {
+         state = Wire.read();
+      }
+      isReady = (state == BUTTON_PRESSED);
+      return isReady;
+    }
+
+    void setNotReady() {
+      isReady = false;
     }
 
     void clearCommand() {
@@ -166,7 +208,9 @@ class Console {
       setCommand(nextInstr, nextGoal);
     }
 
-    explicit Console(byte addr) : busAddr(addr) {}
+    explicit Console(byte addr) : busAddr(addr) {
+      isReady = false;
+    }
 };
 
 Console consoles[] = {
@@ -177,14 +221,18 @@ Console consoles[] = {
 
 const int NUM_CONSOLES = sizeof(consoles) / sizeof(Console);
 
+byte state;
+int score;
+int lastTime;
+
 void setup() {
   Serial.begin(9600); // for debugging
   Wire.begin();
 
   delay(3000);
   Serial.println("Initializing...");
-
-  // TODO: seed random number generator
+  
+  randomSeed(analogRead(0));
   for (int i = 0; i < NUM_INSTR; i++) {
     instruments[i].setName();
     delay(2000);
@@ -193,16 +241,43 @@ void setup() {
     consoles[i].genCommand();
     delay(2000);
   }
+  score = 0;
+  lastTime = millis();
+  state = WAITING;
 }
 
 void loop() {
-  for (int i = 0; i < NUM_CONSOLES; i++) {
-    Console& current = consoles[i];
-    if (current.isCompleted()) {
-      current.clearCommand();
-      current.genCommand();
+  if (state == WAITING) {
+    bool goToNext = true;
+    for (int i = 0; i < NUM_CONSOLES; i++) {
+      goToNext = goToNext && consoles[i].checkIfReady();
     }
+    if(goToNext) {
+      state = GAMEPLAY;
+    }
+  }
+  else if (state == GAMEPLAY) {
+    if (millis() - lastTime > TIMEOUT) {
+      state = RESET;
+    } else {
+      for (int i = 0; i < NUM_CONSOLES; i++) {
+        Console& current = consoles[i];
+        if (current.isCompleted()) {
+          current.clearCommand();
+          current.genCommand();
+          int newTime = millis();
+          score += TIMEOUT - (newTime - lastTime);
+          lastTime = newTime;
+        }
+      }
+    }
+  }
+  else if (state == RESET) {
+    for (int i = 0; i < NUM_CONSOLES; i++) {
+      consoles[i].setNotReady();
+    }
+    //TODO: reset all the instrument names
+    state = WAITING;
   }
   delay(10);
 }
-
