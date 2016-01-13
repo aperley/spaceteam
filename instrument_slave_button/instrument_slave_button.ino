@@ -30,6 +30,12 @@
 LiquidCrystal lcd(LCD_RS_PIN, LCD_EN_PIN, LCD_D4_PIN, LCD_D5_PIN,
                   LCD_D6_PIN, LCD_D7_PIN);
 
+long lastDebounceTime = 0;
+long debounceDelay = 50;
+int inputState = 0;
+int inputReading;
+int lastInputReading;
+
 void setup() {
   pinMode(INPUT_PIN, INPUT);
   
@@ -39,10 +45,22 @@ void setup() {
   lcd.print("Initializing...");
   delay(1000);
   lcd.clear();
+
+  inputState = 0;
+  lastInputReading = LOW;
 }
 
 void loop() {
-  int inputState = digitalRead(INPUT_PIN);
+  if (inputState == 0) {
+    inputReading = digitalRead(INPUT_PIN);
+    if (inputReading != lastInputReading) {
+      lastDebounceTime = millis();
+    }
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+      inputState = inputReading;
+    }
+    lastInputReading = inputReading;
+  }
   lcd.setCursor(0, 1);
   lcd.print(inputState);
   
@@ -54,6 +72,7 @@ void loop() {
         break;
       case CMD_GET_STATE:
         getState(inputState);
+        inputState = 0;
         break;
       default:
         break;

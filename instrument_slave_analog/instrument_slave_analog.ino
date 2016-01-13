@@ -42,7 +42,8 @@ void setup() {
 }
 
 void loop() {
-  int inputState = digitalRead(INPUT_PIN);
+  int analogVal = analogRead(INPUT_PIN);
+  byte inputState = analogVal * 5 / 1024;
   lcd.setCursor(0, 1);
   lcd.print(inputState);
   

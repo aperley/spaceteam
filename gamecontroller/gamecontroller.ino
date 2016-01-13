@@ -8,8 +8,8 @@ const byte CHANGE_INSTR_NAME = 1;
 const byte GET_INSTR_STATE = 2;
 const byte CHANGE_CONSOLE_CMD = 3;
 
-const char* const names[] = {"jess", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"};
-const char* const commands[] = {"set Jess to %s",
+const char* const names[] = {"Toilet Plunger", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"};
+const char* const commands[] = {"Plunge Toilets%s",
                           "turn second to %s",
                           "set third to the position %s",
                           "make sure fourth is %s",
@@ -19,7 +19,7 @@ const char* const commands[] = {"set Jess to %s",
                           "greet eighth with %s",
                           "turn ninth to %s position"};
 const char* const targetNames [][MAX_STATES] = 
-  {{"low", "high"},
+  {{"", ""},
    {"high", "low"},
    {"on", "off"},
    {"1", "2", "3", "4", "5"},
