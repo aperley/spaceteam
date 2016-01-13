@@ -19,6 +19,8 @@
 #define LCD_D6_PIN 3
 #define LCD_D7_PIN 2
 
+#define INPUT_PIN 9
+
 #define LCD_ROWS 2
 #define LCD_COLS 16
 
@@ -29,6 +31,8 @@ LiquidCrystal lcd(LCD_RS_PIN, LCD_EN_PIN, LCD_D4_PIN, LCD_D5_PIN,
                   LCD_D6_PIN, LCD_D7_PIN);
 
 void setup() {
+  pinMode(INPUT_PIN, INPUT);
+  
   lcd.begin(LCD_COLS, LCD_ROWS);
   TinyWireS.begin(I2C_SLAVE_ADDR);
   lcd.setCursor(0, 0);
@@ -38,22 +42,25 @@ void setup() {
 }
 
 void loop() {
+  int inputState = digitalRead(INPUT_PIN);
+  lcd.setCursor(0, 1);
+  lcd.print(inputState);
+  
   if (TinyWireS.available()) {
-    lcd.setCursor(0, 1);
     byte byteRcvd = TinyWireS.receive();
-    lcd.print(byteRcvd);
-    delay(1000);
     switch (byteRcvd) {
       case CMD_SET_NAME:
         setName();
         break;
       case CMD_GET_STATE:
-        getState();
+        getState(inputState);
         break;
       default:
         break;
     }
   }
+
+  delay(10);
 }
 
 void setName() {
@@ -70,7 +77,7 @@ void setName() {
   }
 }
 
-void getState() {
-  TinyWireS.send(10);
+void getState(byte inputState) {
+  TinyWireS.send(inputState);
 }
 

@@ -19,7 +19,7 @@ const char* const commands[] = {"set Jess to %s",
                           "greet eighth with %s",
                           "turn ninth to %s position"};
 const char* const targetNames [][MAX_STATES] = 
-  {{"up", "down"},
+  {{"low", "high"},
    {"high", "low"},
    {"on", "off"},
    {"1", "2", "3", "4", "5"},
@@ -131,6 +131,10 @@ class Console {
     bool isCompleted() {
       Instrument& instr = instruments[currentInstrument];
       bool result = instr.getState() == instrumentGoal;
+      Serial.print("Instr state is ");
+      Serial.print(instr.getState());
+      Serial.print(" goal is ");
+      Serial.println(instrumentGoal);
       if (result) {
         Serial.print("Command completed for console 0x");
         Serial.println(busAddr, HEX);
