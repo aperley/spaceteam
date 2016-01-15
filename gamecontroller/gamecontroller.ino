@@ -184,14 +184,14 @@ void setup() {
   delay(3000);
   Serial.println("Initializing...");
 
-  // TODO: seed random number generator
+  randomSeed(analogRead(0));
   for (int i = 0; i < NUM_INSTR; i++) {
     instruments[i].setName();
-    delay(2000);
+    delay(10);
   }
   for (int i = 0; i < NUM_CONSOLES; i++) {
     consoles[i].genCommand();
-    delay(2000);
+    delay(10);
   }
 }
 
